@@ -911,6 +911,7 @@ import skypedata, util
 
 previous_day = datetime.date.fromtimestamp(0)
 previous_author = None
+last_call = None
 %>
 %for m in messages:
 %if m["datetime"].date() != previous_day:
@@ -935,6 +936,14 @@ is_info = (skypedata.MESSAGE_TYPE_INFO == m["type"])
 # Kludge to get single-line messages with an emoticon to line up correctly
 # with the author, as emoticons have an upper margin pushing the row higher
 text_plain = m.get("body_txt", text)
+
+duration = None
+if "Call</span>" in text_plain:
+    last_call = m
+if "Call ended</span>" in text_plain and last_call:
+    duration = (m["datetime"] - last_call["datetime"])
+    last_call = None
+
 emot_start = '<span class="emoticon '
 shift_row = emot_start in text and (("<br />" not in text and len(text_plain) < 140) or text.index(emot_start) < 140)
 author_class = "remote" if m["author"] != db.id else "local"
@@ -947,6 +956,9 @@ author_class = "remote" if m["author"] != db.id else "local"
     <span class="{{author_class}}">{{m["from_dispname"]}}</span>
 %endif
     {{text}}
+%if duration:
+    (Duration: {{duration}})
+%endif
     </div></td>
     <td class="timestamp" title="{{m["datetime"].strftime("%Y-%m-%d %H:%M:%S")}}">
 %if m["edited_timestamp"]:
